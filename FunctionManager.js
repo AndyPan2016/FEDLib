@@ -11,7 +11,7 @@
 		//自定义事件委托存储对象
 		CUSTOMDELEGATES: {},
 		//Object自定义原型对象
-		__PROTO__: {listen: true, on: true, bind: true, shift: true, fire: true}
+		__PROTO__: {listen: true, on: true, bind: true, shift: true, fire: true, callee: true, kvpcallee: true}
 	};
 
 	//事件对象
@@ -216,6 +216,28 @@
 	    return result;
 	};
 
+	BuiltIn.callee = function(self, args, posing){
+		var result;
+		if(args){
+			var each = function(obj, posing){
+				var res = BuiltIn.ParameterManager([obj], self);
+				result = self.apply(posing || {}, res[0]);
+			};
+			if(BuiltIn.isArray(args)){
+				var i = 0, len = args.length, item;
+				for(;i<len;i++){
+					item = args[i];
+					if(BuiltIn.isJSON(item))
+						each(item, posing);
+				}
+			}
+			else if(BuiltIn.isJSON(args)){
+				each(args, posing);
+			}
+		}
+		return result;
+	};
+
 	/**
 	 * 将数组转换成自定义的JSON格式对象
 	 * @param  {Function/Array/String} defaults 被转换后JSON的Key，可以是函数，自定义key；也可以是数组，依次指定key；也可以是字符串，统一指定key
@@ -392,9 +414,8 @@
 	 * 以原函数的参数名作为JSON对象的key，传入必要的参数
 	 * @return {Object} 原函数的返回值
 	 */
-	Function.prototype.callee = function(){
-		var result = BuiltIn.ParameterManager(arguments, this);
-		return this.apply(arguments[1] || result[1], result[0]);
+	Function.prototype.callee = function(objs, posing){
+		return BuiltIn.callee(this, objs, posing);
 	};
 
 	/**
@@ -402,29 +423,114 @@
 	 * @param  {Array/JSON Object} objs 键值对集合对象
 	 * @return {Object}      原函数的返回值
 	 */
-	Function.prototype.kvpcallee = function(objs){
+	Function.prototype.kvpcallee = function(objs, posing){
 		var result, _self = this;
 		if(objs){
-			var each = function(obj){
-				for(var key in obj)
-					result = _self.apply(arguments[1] || {}, [key, obj[key]]);
+			var each = function(obj, posing){
+				for(var key in obj){
+					if(!Local.__PROTO__[key])
+						result = _self.apply(posing || {}, [key, obj[key]]);
+				}
 			};
 			if(BuiltIn.isArray(objs)){
 				var i = 0, len = objs.length, item;
 				for(;i<len;i++){
 					item = objs[i];
 					if(BuiltIn.isJSON(item))
-						each(item);
+						each(item, posing);
 				}
 			}
 			else if(BuiltIn.isJSON(objs))
-				each(objs);
+				each(objs, posing);
 		}
 		return result;
 	};
 
 })(window);
 
+/*
+//函数对象
+var MyClass = function(){
+	var self = this;
+
+	var attr = {};
+
+	self.set = function(key, val){
+		if(key && val)
+			attr[key] = val;
+		return self;
+	}
+
+	self.get = function(){
+		console.info(attr);
+	};
+
+	self.listen();
+};
+
+var clas = new MyClass();
+*/
+/*
+//JSON对象
+var clas = {
+	attr: {},
+	set: function(key, val){
+		if(key && val)
+			this.attr[key] = val;
+		return this;
+	},
+	get: function(){
+		console.info(this.attr);
+	}
+}.listen();
+
+//方式一
+clas.set('default', 'default').get();
+//方式二
+clas.set({key: 'model1', val: 'model1'}).get();
+//方式三
+clas.set.kvpcallee({'model2': 'model2'}, clas).get();
+//方式四
+clas.set.kvpcallee({model3: 'model3', model4: 'model4'}, clas).get();
+//方式五
+clas.set.kvpcallee([{model5: 'model5'}, {model6: 'model6'}], clas).get();
+*/
+
+/*
+//函数字面量
+var fun = function(name, age, sex, hobby){
+	var person = {};
+	person.name = name || '[No Name]';
+	person.age = age || '[No Age]';
+	person.sex = sex || '[No Sex]';
+	person.hobby = hobby || '[No hobby]';
+
+	console.info(person);
+};
+
+//情景一：假如有一个模拟person对象，但它的信息不完整
+var mock = {
+	name: '张三',
+	hobby: '兴趣爱好'
+};
+//方式一(每一个参数，即使没有值，也必须需要一个占位, 并且顺序不能变)
+fun(mock.name, null, null, mock.hobby);
+//方式二(首先要保证模拟数据的key与fun函数的对应参数名一致)
+fun.callee(mock);
+//情景二：假如有一组模拟person对象，同样它的信息不完整
+var mock = [
+	{name: '李四', age: 21},
+	{name: '王五', sex: '男'},
+	{sex: '女', hobby: '跳舞'}
+];
+//方式一(需要一个循环来遍历)
+var i = 0, len = mock.length, item;
+for(;i<len;i++){
+	item = mock[i];
+	fun(item.name, item.age, item.sex, item.hobby);
+}
+//方式二
+fun.callee(mock);*/
 
 /*
 var a = function(name, options, age){
