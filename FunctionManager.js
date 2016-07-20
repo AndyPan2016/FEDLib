@@ -11,7 +11,7 @@
 		//自定义事件委托存储对象
 		CUSTOMDELEGATES: {},
 		//Object自定义原型对象
-		__PROTO__: {listen: true, on: true, bind: true, shift: true, fire: true}
+		__PROTO__: {listen: true, on: true, bind: true, shift: true, fire: true, callee: true, kvpcallee: true}
 	};
 
 	//事件对象
@@ -216,6 +216,28 @@
 	    return result;
 	};
 
+	BuiltIn.callee = function(self, args, posing){
+		var result;
+		if(args){
+			var each = function(obj, posing){
+				var res = BuiltIn.ParameterManager([obj], self);
+				result = self.apply(posing || {}, res[0]);
+			};
+			if(BuiltIn.isArray(args)){
+				var i = 0, len = args.length, item;
+				for(;i<len;i++){
+					item = args[i];
+					if(BuiltIn.isJSON(item))
+						each(item, posing);
+				}
+			}
+			else if(BuiltIn.isJSON(args)){
+				each(args, posing);
+			}
+		}
+		return result;
+	};
+
 	/**
 	 * 将数组转换成自定义的JSON格式对象
 	 * @param  {Function/Array/String} defaults 被转换后JSON的Key，可以是函数，自定义key；也可以是数组，依次指定key；也可以是字符串，统一指定key
@@ -392,9 +414,8 @@
 	 * 以原函数的参数名作为JSON对象的key，传入必要的参数
 	 * @return {Object} 原函数的返回值
 	 */
-	Function.prototype.callee = function(){
-		var result = BuiltIn.ParameterManager(arguments, this);
-		return this.apply(arguments[1] || result[1], result[0]);
+	Function.prototype.callee = function(objs, posing){
+		return BuiltIn.callee(this, objs, posing);
 	};
 
 	/**
@@ -402,25 +423,28 @@
 	 * @param  {Array/JSON Object} objs 键值对集合对象
 	 * @return {Object}      原函数的返回值
 	 */
-	Function.prototype.kvpcallee = function(objs){
+	Function.prototype.kvpcallee = function(objs, posing){
 		var result, _self = this;
 		if(objs){
-			var each = function(obj){
-				for(var key in obj)
-					result = _self.apply(arguments[1] || {}, [key, obj[key]]);
+			var each = function(obj, posing){
+				for(var key in obj){
+					if(!Local.__PROTO__[key])
+						result = _self.apply(posing || {}, [key, obj[key]]);
+				}
 			};
 			if(BuiltIn.isArray(objs)){
 				var i = 0, len = objs.length, item;
 				for(;i<len;i++){
 					item = objs[i];
 					if(BuiltIn.isJSON(item))
-						each(item);
+						each(item, posing);
 				}
 			}
 			else if(BuiltIn.isJSON(objs))
-				each(objs);
+				each(objs, posing);
 		}
 		return result;
 	};
 
 })(window);
+
